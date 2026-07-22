@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配电箱系统图自动生成器</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#fff; --line:#e2e8f0; --ink:#1f2937; --mut:#6b7280;
+    --brand:#1c7ed6; --brand2:#0b5cad; --ok:#2f9e44; --warn:#e8590c; --red:#d6336c;
+    --chip:#eef2f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:700}
+  header .proj{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;padding:5px 9px;min-width:220px}
+  header .spacer{flex:1}
+  .btn{background:#fff;color:var(--brand2);border:none;border-radius:6px;padding:7px 12px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn:hover{background:#e7f5ff}
+  .btn.primary{background:var(--brand2);color:#fff}
+  .btn.primary:hover{background:#094a8f}
+  .btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6)}
+  .btn.ghost:hover{background:rgba(255,255,255,.15)}
+  .btn.sm{padding:4px 9px;font-size:12px}
+  .btn.danger{background:#fff0f0;color:#e03131;border:1px solid #ffc9c9}
+  .btn.danger:hover{background:#ffe3e3}
+
+  .wrap{display:grid;grid-template-columns:minmax(420px,1fr) minmax(440px,1fr);gap:14px;padding:14px;align-items:start}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .panel h2 .tag{font-size:11px;background:var(--chip);color:var(--mut);padding:2px 7px;border-radius:20px;font-weight:600}
+
+  .meta-bar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:11px;color:var(--mut)}
+  select,input[type=text],input[type=number]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+
+  .card{border:1px solid var(--line);border-radius:9px;margin-bottom:12px;overflow:hidden}
+  .card>.head{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--chip);cursor:pointer;user-select:none}
+  .card>.head .ttl{font-weight:700}
+  .card>.head .badge{font-size:11px;background:var(--brand);color:#fff;border-radius:20px;padding:1px 8px}
+  .card>.head .tw{margin-left:auto;color:var(--mut);font-size:12px}
+  .card>.body{padding:11px}
+  .card.collapsed>.body{display:none}
+
+  .cfg{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:#f8fafc;border:1px dashed var(--line);border-radius:8px;padding:9px;margin-bottom:10px}
+  .mini{width:74px}
+
+  .sub{border:1px solid var(--line);border-radius:8px;margin:8px 0;overflow:hidden}
+  .sub>.sh{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;cursor:pointer}
+  .sub>.sh input.name{flex:1;font-weight:600;background:transparent;border:1px solid transparent;border-radius:5px;padding:4px 6px}
+  .sub>.sh input.name:hover{border-color:var(--line)}
+  .sub>.sh input.name:focus{background:#fff;border-color:var(--brand)}
+  .sub>.sb{padding:9px 10px}
+  .sub.collapsed>.sb{display:none}
+  .phase{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#fff0f6;color:var(--red);border:1px solid #fcc2d7}
+  .res{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:4px 0 8px}
+  .res b{color:var(--ink)}
+  .res .pill{background:var(--chip);border-radius:6px;padding:3px 8px}
+
+  table.dev{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.dev th,table.dev td{border:1px solid var(--line);padding:4px 6px;text-align:left}
+  table.dev th{background:#f1f5f9;color:var(--mut);font-weight:600}
+  table.dev input{border:1px solid var(--line);border-radius:5px;padding:3px 5px;width:100%;font-size:12.5px}
+  table.dev .w60{width:64px}.w70{width:74px}.w90{width:92px}
+  .addrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .addrow input{padding:5px 7px}
+  .hint{font-size:11px;color:var(--mut);margin:2px 0 6px}
+
+  .preview{position:sticky;top:14px}
+  .preview .scroll{height:62vh;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:6px}
+  .totals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+  .totals .box{background:var(--chip);border-radius:8px;padding:8px 10px}
+  .totals .box .k{font-size:11px;color:var(--mut)}
+  .totals .box .v{font-size:16px;font-weight:800;color:var(--brand2)}
+  .legend{font-size:11px;color:var(--mut);line-height:1.7}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  details.adv{margin-top:6px}
+  details.adv summary{cursor:pointer;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ 配电箱系统图自动生成器</h1>
+  <input class="proj" id="projName" placeholder="项目名称">
+  <div class="spacer"></div>
+  <button class="btn ghost" id="btnDemo">载入示例</button>
+  <button class="btn ghost" id="btnClear">清空</button>
+  <button class="btn" id="btnReport">导出计算书</button>
+  <button class="btn" id="btnSvg">导出SVG</button>
+  <button class="btn" id="btnDxf">导出DXF</button>
+  <button class="btn primary" id="btnDwg">导出DWG</button>
+</header>
+
+<div class="wrap">
+  <!-- 左：配置 + 设备树 -->
+  <div>
+    <div class="panel" style="margin-bottom:14px">
+      <h2>项目配置 <span class="tag">全局</span></h2>
+      <div class="meta-bar">
+        <div class="field"><label>供电系统</label>
+          <select id="vSystem">
+            <option value="three">三相 380V（入户）</option>
+            <option value="single">单相 220V</option>
+          </select></div>
+        <div class="field"><label>防火等级</label>
+          <select id="fire"></select></div>
+        <div class="field"><label>线缆类型</label>
+          <select id="ctype"></select></div>
+      </div>
+      <div class="hint">提示：修改以上任意项会实时重算并刷新右侧系统图。防火等级越高，线缆载流量降容越多，自动选更大截面。</div>
+    </div>
+
+    <div id="tree"></div>
+  </div>
+
+  <!-- 右：预览 + 汇总 -->
+  <div class="preview">
+    <div class="panel">
+      <h2>配电箱系统图 <span class="tag">实时预览</span></h2>
+      <div class="totals" id="totals"></div>
+      <div class="scroll" id="svgBox"><div style="color:var(--mut);padding:30px;text-align:center">计算中…</div></div>
+      <div class="legend" style="margin-top:8px">
+        <span class="sw" style="background:#d6336c"></span>母线/相线
+        <span class="sw" style="background:#1c7ed6"></span>断路器
+        <span class="sw" style="background:#e8590c"></span>带漏保(RCD)
+        <span style="margin-left:10px">回路类型：插座(C16起+RCD) / 照明(C10) / 设备(按功率)</span>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnReport2">负荷计算书(MD)</button>
+        <button class="btn" id="btnSvg2">SVG 文件</button>
+        <button class="btn" id="btnDxf2">DXF 文件（CAD）</button>
+        <button class="btn primary" id="btnDwg2">DWG 文件（AutoCAD）</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = {
+  standards: ()=>fetch('/api/standards').then(r=>r.json()),
+  demo: ()=>fetch('/api/demo').then(r=>r.json()),
+  compute: (p)=>fetch('/api/compute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(r=>r.json()),
+  svg: (p)=>fetch('/api/export/svg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(r=>r.json()),
+  dxf: (p)=>fetch('/api/export/dxf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(r=>r.json()),
+  report: (p)=>fetch('/api/export/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(r=>r.json()),
+};
+
+let STD = {fire_ratings:{},cable_types:{},categories:{}};
+let project = {meta:{name:'',voltage_system:'three',fire_rating:'普通',cable_type:'BV'},groups:[]};
+let lastResult = null;
+let uid = 1;
+const nid = ()=> 'id'+ (uid++);
+const CATLABEL = {socket:'插座回路',lighting:'照明回路',device:'设备回路'};
+const TYPELIST = ['照明','插座','空调','挂机','柜机','热水器','浴霸','冰箱','洗衣机','油烟机','水泵','大功率','新风','排风扇'];
+
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const k in attrs){if(k==='class')e.className=attrs[k];else if(k==='html')e.innerHTML=attrs[k];else if(k.startsWith('on'))e.addEventListener(k.slice(2),attrs[k]);else e.setAttribute(k,attrs[k]);}for(const c of kids){if(c!=null)e.appendChild(typeof c==='string'?document.createTextNode(c):c);}return e;}
+
+async function init(){
+  STD = await API.standards();
+  fillSelect('fire', Object.keys(STD.fire_ratings));
+  fillSelect('ctype', Object.keys(STD.cable_types));
+  project = await API.demo();
+  bindMeta();
+  renderTree();
+  await refresh();
+}
+function fillSelect(id, arr){const s=document.getElementById(id);s.innerHTML='';arr.forEach(v=>{const o=el('option',{value:v},v);s.appendChild(o);});}
+
+function bindMeta(){
+  document.getElementById('projName').value = project.meta.name||'';
+  document.getElementById('vSystem').value = project.meta.voltage_system;
+  document.getElementById('fire').value = project.meta.fire_rating;
+  document.getElementById('ctype').value = project.meta.cable_type;
+  document.getElementById('projName').oninput = e=>{project.meta.name=e.target.value; refreshSoon();};
+  document.getElementById('vSystem').onchange = e=>{project.meta.voltage_system=e.target.value; renderTree(); refreshSoon();};
+  document.getElementById('fire').onchange = e=>{project.meta.fire_rating=e.target.value; refreshSoon();};
+  document.getElementById('ctype').onchange = e=>{project.meta.cable_type=e.target.value; refreshSoon();};
+}
+
+// ---- 树渲染 ----
+function renderTree(){
+  const tree = document.getElementById('tree');
+  tree.innerHTML='';
+  ['socket','lighting','device'].forEach(cat=>{
+    let g = project.groups.find(g=>g.category===cat);
+    if(!g){ g = {id:nid(),category:cat,name:CATLABEL[cat],config:cat==='socket'?{common_socket_count:12,common_socket_loops:3}:cat==='lighting'?{light_loops:2,split:true}:{},subloops:[]}; project.groups.push(g);}
+    tree.appendChild(renderGroup(g));
+  });
+}
+
+function renderGroup(g){
+  const cat=g.category;
+  const card = el('div',{class:'card'});
+  const head = el('div',{class:'head',onclick:()=>card.classList.toggle('collapsed')},
+    el('span',{class:'ttl'}, CATLABEL[cat]),
+    el('span',{class:'badge'}, (g.subloops||[]).length+' 分路'),
+    el('span',{class:'tw'},'▾ 点击展开/收起'));
+  const body = el('div',{class:'body'});
+
+  if(cat==='socket'){
+    const cfg = g.config;
+    body.appendChild(el('div',{class:'cfg'},
+      el('div',{class:'field'},el('label',{},'常用插座总数'),el('input',{type:'number',class:'mini',id:'sockCount',value:cfg.common_socket_count||0,oninput:e=>{cfg.common_socket_count=+e.target.value;}})),
+      el('div',{class:'field'},el('label',{},'分配路数'),el('input',{type:'number',class:'mini',id:'sockLoops',value:cfg.common_socket_loops||1,oninput:e=>{cfg.common_socket_loops=+e.target.value;}})),
+      el('button',{class:'btn sm primary',onclick:()=>{genSocketLoops(g);renderTree();refreshSoon();}},'生成常用插座分路'),
+      el('button',{class:'btn sm',onclick:()=>{addSubloop(g,{is_dedicated:true});renderTree();refreshSoon();}},'+ 单独电器分路')
+    ));
+    body.appendChild(el('div',{class:'hint'},'“常用插座”按总数均分到各路（每插座估算 200W），与“单独电器”分开成路；常用插座与单独电器均带 RCD。'));
+  }
+  if(cat==='lighting'){
+    const cfg=g.config;
+    const splitChk = el('input',{type:'checkbox',checked:cfg.split!==false,onchange:e=>{cfg.split=e.target.checked;}});
+    body.appendChild(el('div',{class:'cfg'},
+      splitChk, el('label',{},'分多路'),
+      el('div',{class:'field'},el('label',{},'照明分路数'),el('input',{type:'number',class:'mini',id:'lightLoops',value:cfg.light_loops||1,oninput:e=>{cfg.light_loops=+e.target.value;},...(cfg.split===false?{disabled:'disabled'}:{})})),
+      el('button',{class:'btn sm primary',onclick:()=>{genLightingLoops(g);renderTree();refreshSoon();}},'生成照明分路')
+    ));
+    body.appendChild(el('div',{class:'hint'},'不分多路 → 全部照明合并为 1 路；分多路 → 按“照明分路数”拆成多路（如客餐厅/卧室分开）。'));
+  }
+  if(cat==='device'){
+    body.appendChild(el('div',{class:'cfg'},
+      el('button',{class:'btn sm primary',onclick:()=>{addSubloop(g,{});renderTree();refreshSoon();}},'+ 添加设备回路')
+    ));
+    body.appendChild(el('div',{class:'hint'},'每个设备回路为独立分支（单台设备或设备组）。含空调/电机类自动上浮空开至 C16；勾选“三相”按 380V 计算。'));
+  }
+
+  (g.subloops||[]).forEach(sl=>body.appendChild(renderSubloop(g,sl)));
+  card.appendChild(head); card.appendChild(body);
+  if(cat==='device') {} // 设备回路默认展开
+  return card;
+}
+
+function renderSubloop(g,sl){
+  const sub = el('div',{class:'sub'});
+  const sh = el('div',{class:'sh',onclick:()=>sub.classList.toggle('collapsed')});
+  const nameIn = el('input',{class:'name',value:sl.name,oninput:e=>{sl.name=e.target.value;refreshSoon();}});
+  const phase = el('span',{class:'phase',id:'phase-'+sl.id},sl.phase||'—');
+  sh.appendChild(nameIn); sh.appendChild(phase);
+  sh.appendChild(el('span',{class:'tw',style:'margin-left:auto;color:var(--mut);font-size:12px'},'▾'));
+  const delBtn = el('button',{class:'btn sm danger',onclick:()=>{removeSubloop(g,sl);renderTree();refreshSoon();}},'删除');
+  sh.appendChild(delBtn);
+
+  const sb = el('div',{class:'sb'});
+  // 结果条
+  sb.appendChild(el('div',{class:'res',id:'res-'+sl.id}));
+  // 设备表
+  sb.appendChild(renderDeviceTable(g,sl));
+  // 添加设备表单
+  sb.appendChild(renderAddDevice(g,sl));
+  // 高级
+  sb.appendChild(renderAdv(g,sl));
+
+  sub.appendChild(sh); sub.appendChild(sb);
+  return sub;
+}
+
+function renderDeviceTable(g,sl){
+  const t = el('table',{class:'dev'});
+  t.appendChild(el('tr',{},
+    el('th',{class:'w90'},'设备名称'),el('th',{class:'w70'},'房间'),el('th',{class:'w70'},'类型'),
+    el('th',{class:'w60'},'功率W'),el('th',{class:'w60'},'数量'),el('th',{class:'w60'},'三相'),
+    el('th',{style:'width:34px'},'')));
+  (sl.devices||[]).forEach((d,i)=>{
+    t.appendChild(el('tr',{},
+      el('td',{},el('input',{type:'text',value:d.name,oninput:e=>{d.name=e.target.value;refreshSoon();}})),
+      el('td',{},el('input',{type:'text',class:'w70',value:d.room||'',oninput:e=>{d.room=e.target.value;refreshSoon();}})),
+      el('td',{},el('input',{type:'text',class:'w70',value:d.type||'',list:'typelist',oninput:e=>{d.type=e.target.value;refreshSoon();}})),
+      el('td',{},el('input',{type:'number',class:'w60',value:d.power,oninput:e=>{d.power=+e.target.value||0;refreshSoon();}})),
+      el('td',{},el('input',{type:'number',class:'w60',value:d.qty||1,oninput:e=>{d.qty=+e.target.value||1;refreshSoon();}})),
+      el('td',{style:'text-align:center'},el('input',{type:'checkbox',checked:!!d.threePhase,onchange:e=>{d.threePhase=e.target.checked;refreshSoon();}})),
+      el('td',{},el('button',{class:'btn sm danger',onclick:()=>{sl.devices.splice(i,1);renderTree();refreshSoon();}},'×'))
+    ));
+  });
+  return t;
+}
+
+function renderAddDevice(g,sl){
+  const name=el('input',{type:'text',placeholder:'设备名',class:'w90'});
+  const room=el('input',{type:'text',placeholder:'房间',class:'w70'});
+  const type=el('input',{type:'text',placeholder:'类型',class:'w70',list:'typelist'});
+  const pow=el('input',{type:'number',placeholder:'功率W',class:'w60'});
+  const qty=el('input',{type:'number',placeholder:'数量',class:'w60',value:1});
+  const tp=el('input',{type:'checkbox',title:'三相设备'});
+  const add=()=>{
+    const p=+pow.value||0;
+    if(!name.value || p<=0){alert('请填写设备名称与功率');return;}
+    sl.devices=sl.devices||[];
+    sl.devices.push({name:name.value,room:room.value,type:type.value,power:p,qty:+qty.value||1,threePhase:tp.checked});
+    renderTree(); refreshSoon();
+  };
+  return el('div',{class:'addrow'},
+    name,room,type,pow,qty,el('label',{style:'font-size:12px;color:var(--mut)'},tp,'三相'),
+    el('button',{class:'btn sm primary',onclick:add},'+ 添加设备'));
+}
+
+function renderAdv(g,sl){
+  const d=el('details',{class:'adv'},el('summary',{},'高级：手动覆盖需用系数 kx / 功率因数 / 漏保 / 三相'));
+  const kx=el('input',{type:'number',class:'mini',placeholder:'kx',step:'0.05',value:sl.kx??'',oninput:e=>{sl.kx=e.target.value===''?undefined:+e.target.value;refreshSoon();}});
+  const cs=el('input',{type:'number',class:'mini',placeholder:'cosφ',step:'0.05',value:sl.cosphi??'',oninput:e=>{sl.cosphi=e.target.value===''?undefined:+e.target.value;refreshSoon();}});
+  const rcd=el('input',{type:'checkbox',checked:!!sl.rcd,onchange:e=>{sl.rcd=e.target.checked;refreshSoon();}});
+  const tp=el('input',{type:'checkbox',checked:!!sl.threePhase,onchange:e=>{sl.threePhase=e.target.checked;refreshSoon();}});
+  d.appendChild(el('div',{class:'cfg',style:'margin-top:6px'},
+    el('div',{class:'field'},el('label',{},'kx'),kx),
+    el('div',{class:'field'},el('label',{},'cosφ'),cs),
+    el('label',{style:'font-size:12px;color:var(--mut)'},rcd,'强制RCD'),
+    el('label',{style:'font-size:12px;color:var(--mut)'},tp,'三相设备')
+  ));
+  return d;
+}
+
+// ---- 生成逻辑 ----
+function genSocketLoops(g){
+  const count=g.config.common_socket_count||0, loops=Math.max(1,g.config.common_socket_loops||1);
+  g.subloops = g.subloops.filter(s=>s.is_dedicated); // 仅保留单独电器
+  const base=Math.floor(count/loops), rem=count%loops;
+  for(let i=0;i<loops;i++){const c=base+(i<rem?1:0);g.subloops.unshift({id:nid(),name:'常用插座-'+(i+1),category:'socket',is_dedicated:false,est_load_w:c*200,devices:[]});}
+}
+function genLightingLoops(g){
+  const loops = g.config.split===false ? 1 : Math.max(1,g.config.light_loops||1);
+  g.subloops=[];
+  for(let i=0;i<loops;i++){g.subloops.push({id:nid(),name:'照明-'+(i+1),category:'lighting',devices:[]});}
+}
+function addSubloop(g,extra){g.subloops=g.subloops||[];g.subloops.push(Object.assign({id:nid(),name:CATLABEL[g.category]+'-'+(g.subloops.length+1),category:g.category,devices:[]},extra||{}));}
+function removeSubloop(g,sl){g.subloops=g.subloops.filter(s=>s!==sl);}
+
+// ---- 计算 + 刷新 ----
+let timer=null;
+function refreshSoon(){clearTimeout(timer);timer=setTimeout(refresh,250);}
+async function refresh(){
+  // 同步 meta 输入
+  project.meta.name=document.getElementById('projName').value;
+  lastResult = await API.compute(project);
+  renderResults(lastResult);
+}
+function renderResults(res){
+  // 各分路结果
+  res.circuits.forEach(c=>{
+    const r=document.getElementById('res-'+c.id);
+    if(r){r.innerHTML='';
+      r.appendChild(el('span',{class:'pill'},'P ',el('b',{},c.total_p+'W')));
+      r.appendChild(el('span',{class:'pill'},'Ijs ',el('b',{},c.Ijs+'A')));
+      r.appendChild(el('span',{class:'pill'},'空开 ',el('b',{style:'color:var(--brand2)'},'C'+c.In)));
+      r.appendChild(el('span',{class:'pill'},'线缆 ',el('b',{},c.wire_area+'mm²')));
+      if(c.rcd) r.appendChild(el('span',{class:'pill',style:'background:#fff0e6;color:var(--warn)'},'RCD'));
+    }
+    const ph=document.getElementById('phase-'+c.id);
+    if(ph){ph.textContent=c.phase||'—';}
+  });
+  // 汇总
+  const t=res.totals, m=res.main;
+  const tot=document.getElementById('totals');
+  tot.innerHTML='';
+  const boxes=[
+    ['总负荷(计算)',t.P_demand_kW+' kW'],
+    ['总开关', 'C'+m.In_main],
+    ['进线', m.incoming.replace(/\(.*\)/,'')],
+    ['回路数', t.loop_count+' 路'],
+  ];
+  if(res.v_system==='three'){
+    boxes.push(['三相电流 L1/L2/L3', Object.values(m.phase_currents).join(' / ')+' A']);
+    boxes.push(['不平衡度', m.imbalance_pct+' %']);
+  }else{
+    boxes.push(['总电流', m.phase_currents.L+' A']);
+  }
+  boxes.forEach(([k,v])=>{tot.appendChild(el('div',{class:'box'},el('div',{class:'k'},k),el('div',{class:'v'},v)));});
+  // 预览图
+  API.svg(project).then(r=>{document.getElementById('svgBox').innerHTML=r.svg;});
+}
+
+// ---- 导出 ----
+document.getElementById('btnDemo').onclick=async()=>{project=await API.demo();bindMeta();renderTree();await refresh();};
+document.getElementById('btnClear').onclick=()=>{if(confirm('清空所有回路？')){project.groups.forEach(g=>g.subloops=[]);renderTree();refreshSoon();}};
+async function dlDxf(btn){
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='导出中…'; }
+  try{
+    const r = await fetch('/api/export/dxf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(project)});
+    if(r.ok){const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='配电系统图.dxf';a.click();URL.revokeObjectURL(a.href);}
+    else{const j=await r.json().catch(()=>({}));alert('DXF 导出失败: '+(j.msg||r.status));}
+  }catch(e){alert('DXF 导出出错: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent=orig;}}
+}
+function dlSvg(){API.svg(project).then(r=>{const b=new Blob([r.svg],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='配电系统图.svg';a.click();});}
+function dlReport(){API.report(project).then(r=>{if(r.ok)window.location='/api/output/report';else alert('失败');});}
+async function dlDwg(btn){
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='转换中…(调AutoCAD)'; }
+  try{
+    const r = await fetch('/api/export/dwg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(project)});
+    if(r.ok){
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '配电系统图.dwg';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const j = await r.json().catch(()=>({}));
+      alert('DWG 导出失败: ' + (j.msg || ('HTTP ' + r.status)));
+    }
+  }catch(e){ alert('DWG 导出出错: ' + e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
+['btnDxf','btnDxf2'].forEach(id=>{const b=document.getElementById(id); if(b) b.onclick=()=>dlDxf(b);});
+['btnSvg','btnSvg2'].forEach(id=>document.getElementById(id).onclick=dlSvg);
+['btnReport','btnReport2'].forEach(id=>document.getElementById(id).onclick=dlReport);
+['btnDwg','btnDwg2'].forEach(id=>{const b=document.getElementById(id); if(b) b.onclick=()=>dlDwg(b);});
+
+// datalist
+const dl=el('datalist',{id:'typelist'});TYPELIST.forEach(t=>dl.appendChild(el('option',{value:t})));document.body.appendChild(dl);
+
+init();
+</script>
+</body>
+</html>
